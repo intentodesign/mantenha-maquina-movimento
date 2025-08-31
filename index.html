@@ -238,6 +238,53 @@
         .bounce {
             animation: bounce 2s infinite;
         }
+
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(189, 201, 233, 0.05);
+            border-radius: 10px;
+        }
+
+        .day-square {
+            width: 25px;
+            height: 25px;
+            background: #2c3e50;
+            border-radius: 4px;
+            border: 1px solid rgba(189, 201, 233, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .day-square.completed {
+            background: #bdc9e9;
+            color: #121c4d;
+            font-weight: bold;
+        }
+
+        .day-square.today {
+            border: 2px solid #445cc7;
+            box-shadow: 0 0 8px rgba(68, 92, 199, 0.5);
+        }
+
+        @media (max-width: 600px) {
+            .progress-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            
+            .day-square {
+                width: 20px;
+                height: 20px;
+                font-size: 8px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -256,10 +303,11 @@
                 • Sem vidas = eliminado<br>
                 • Primeiro a completar 90 dias consecutivos ganha!
             </p>
-            <button class="btn" onclick="showRegister()">Começar Desafio</button>
-            <div class="link-option">
-                <a href="#" onclick="showLogin()">Já tenho conta - Fazer Login</a>
+            <div class="form-group">
+                <label for="user-name">Digite seu nome:</label>
+                <input type="text" id="user-name" placeholder="Seu nome completo" required>
             </div>
+            <button class="btn" onclick="checkUserAndProceed()">Continuar</button>
         </div>
 
         <!-- Tela de Cadastro -->
@@ -314,6 +362,11 @@
                 <span class="heart">❤️</span>
                 <span class="heart">❤️</span>
                 <span class="heart">❤️</span>
+            </div>
+
+            <!-- Grid de Progresso de 90 Dias -->
+            <div class="progress-grid" id="progress-grid">
+                <!-- Os quadradinhos serão gerados dinamicamente -->
             </div>
 
             <div class="stats-grid">
@@ -434,6 +487,83 @@
         function showLogin() { showScreen('login-screen'); }
         function showDashboard() { showScreen('dashboard-screen'); }
         function showCongratulations() { showScreen('congratulations-screen'); }
+
+        // Função para verificar usuário e direcionar
+        async function checkUserAndProceed() {
+            const nameInput = document.getElementById('user-name');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                alert('Por favor, digite seu nome!');
+                nameInput.focus();
+                return;
+            }
+            
+            try {
+                const result = await makeRequest('checkUser', { name: name });
+                
+                if (result.success) {
+                    if (result.exists) {
+                        // Usuário existe, ir para login
+                        document.getElementById('login-name').value = name;
+                        showLogin();
+                        document.getElementById('login-password').focus();
+                    } else {
+                        // Usuário não existe, ir para cadastro
+                        document.getElementById('register-name').value = name;
+                        showRegister();
+                        document.getElementById('register-password').focus();
+                    }
+                } else {
+                    alert('Erro ao verificar usuário. Tente novamente.');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro de conexão. Tente novamente.');
+            }
+        }
+
+        // Função para gerar grid de 90 dias
+        function generateProgressGrid() {
+            const gridContainer = document.getElementById('progress-grid');
+            gridContainer.innerHTML = '';
+            
+            for (let i = 1; i <= 90; i++) {
+                const daySquare = document.createElement('div');
+                daySquare.className = 'day-square';
+                daySquare.textContent = i;
+                daySquare.id = `day-${i}`;
+                gridContainer.appendChild(daySquare);
+            }
+        }
+
+        // Função para atualizar grid com progresso do usuário
+        function updateProgressGrid() {
+            if (!currentUser) return;
+            
+            const consecutiveDays = currentUser.consecutiveDays || 0;
+            
+            // Limpar estados anteriores
+            document.querySelectorAll('.day-square').forEach(square => {
+                square.classList.remove('completed', 'today');
+            });
+            
+            // Marcar dias completados
+            for (let i = 1; i <= consecutiveDays; i++) {
+                const daySquare = document.getElementById(`day-${i}`);
+                if (daySquare) {
+                    daySquare.classList.add('completed');
+                }
+            }
+            
+            // Marcar próximo dia (hoje)
+            if (consecutiveDays < 90) {
+                const nextDay = document.getElementById(`day-${consecutiveDays + 1}`);
+                if (nextDay) {
+                    nextDay.classList.add('today');
+                }
+            }
+        }
 
         // Função de cadastro
         async function register(event) {
@@ -557,6 +687,11 @@
         async function updateDashboard() {
             if (!currentUser) return;
 
+            // Gerar grid de progresso se não existe
+            if (!document.querySelector('.day-square')) {
+                generateProgressGrid();
+            }
+
             // Atualizar vidas
             const livesDiv = document.getElementById('user-lives');
             livesDiv.innerHTML = '';
@@ -569,6 +704,9 @@
 
             // Atualizar stats
             document.getElementById('consecutive-days').textContent = currentUser.consecutiveDays || 0;
+            
+            // Atualizar grid de progresso
+            updateProgressGrid();
 
             // Carregar ranking
             try {

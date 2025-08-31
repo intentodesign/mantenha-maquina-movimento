@@ -38,6 +38,10 @@ function doGet(e) {
         result = validateSession(e.parameter.sessionToken);
         break;
         
+      case 'checkUser':
+        result = checkUserExists(e.parameter.name);
+        break;
+        
       default:
         result = {success: false, message: 'Ação não encontrada'};
     }
@@ -137,11 +141,13 @@ function getUsersSheet() {
   
   if (!sheet) {
     sheet = spreadsheet.insertSheet('Users');
-    // Cabeçalhos
-    sheet.getRange(1, 1, 1, 10).setValues([[
-      'Nome', 'Senha', 'Vidas', 'Dias Consecutivos', 'Último Check-in', 'Data Cadastro', 'Total Dias', 'Status', 'Session Token', 'Último Login'
+    // Cabeçalhos (senha movida para coluna Z para privacidade)
+    sheet.getRange(1, 1, 1, 9).setValues([[
+      'Nome', 'Vidas', 'Dias Consecutivos', 'Último Check-in', 'Data Cadastro', 'Total Dias', 'Status', 'Session Token', 'Último Login'
     ]]);
-    sheet.getRange(1, 1, 1, 10).setFontWeight('bold');
+    sheet.getRange(1, 1, 1, 9).setFontWeight('bold');
+    sheet.getRange(1, 26).setValue('Senha'); // Coluna Z
+    sheet.getRange(1, 26).setFontWeight('bold');
   }
   
   return sheet;
@@ -161,22 +167,23 @@ function registerUser(name, password) {
     }
     
     // Adicionar novo usuário
-    const now = new Date();
+    const now = getBrazilTime();
     const sessionToken = generateSessionToken();
     const newRow = [
-      name,
-      password,
-      3, // vidas
-      0, // dias consecutivos
-      '', // último check-in
-      now, // data cadastro
-      0, // total dias
-      'Ativo', // status
-      sessionToken, // session token
-      now // último login
+      name, // A
+      3, // B - vidas
+      0, // C - dias consecutivos
+      '', // D - último check-in
+      now, // E - data cadastro
+      0, // F - total dias
+      'Ativo', // G - status
+      sessionToken, // H - session token
+      now // I - último login
     ];
     
-    sheet.appendRow(newRow);
+    const newRowIndex = sheet.getLastRow() + 1;
+    sheet.getRange(newRowIndex, 1, 1, 9).setValues([newRow]);
+    sheet.getRange(newRowIndex, 26).setValue(password); // Senha na coluna Z
     
     const user = {
       name: name,
@@ -204,25 +211,26 @@ function loginUser(name, password) {
     const sheet = getUsersSheet();
     const data = sheet.getDataRange().getValues();
     
-    // Procurar usuário
+    // Procurar usuário e validar senha
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] && data[i][0].toString().toLowerCase() === name.toLowerCase()) {
-        if (data[i][1] === password) {
+        const userPassword = sheet.getRange(i + 1, 26).getValue(); // Coluna Z
+        if (userPassword === password) {
           // Gerar novo token de sessão e atualizar último login
           const sessionToken = generateSessionToken();
-          const now = new Date();
+          const now = getBrazilTime();
           
-          sheet.getRange(i + 1, 9).setValue(sessionToken); // Session Token
-          sheet.getRange(i + 1, 10).setValue(now); // Último Login
+          sheet.getRange(i + 1, 8).setValue(sessionToken); // Session Token (coluna H)
+          sheet.getRange(i + 1, 9).setValue(now); // Último Login (coluna I)
           
           const user = {
-            name: data[i][0],
-            lives: data[i][2],
-            consecutiveDays: data[i][3],
-            lastCheckIn: data[i][4],
-            registrationDate: data[i][5],
-            totalDays: data[i][6],
-            status: data[i][7],
+            name: data[i][0], // A
+            lives: data[i][1], // B
+            consecutiveDays: data[i][2], // C
+            lastCheckIn: data[i][3], // D
+            registrationDate: data[i][4], // E
+            totalDays: data[i][5], // F
+            status: data[i][6], // G
             sessionToken: sessionToken,
             lastLogin: now
           };
@@ -254,9 +262,9 @@ function markUserMovement(name) {
     // Procurar usuário
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] && data[i][0].toString().toLowerCase() === name.toLowerCase()) {
-        const now = new Date();
-        const today = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        const lastCheckIn = data[i][4] ? Utilities.formatDate(new Date(data[i][4]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
+        const now = getBrazilTime();
+        const today = Utilities.formatDate(now, 'America/Sao_Paulo', 'yyyy-MM-dd');
+        const lastCheckIn = data[i][3] ? Utilities.formatDate(new Date(data[i][3]), 'America/Sao_Paulo', 'yyyy-MM-dd') : '';
         
         // Verificar se já marcou hoje
         if (lastCheckIn === today) {
@@ -264,14 +272,14 @@ function markUserMovement(name) {
         }
         
         // Verificar se o usuário está eliminado
-        if (data[i][2] <= 0 || data[i][7] === 'Eliminado') {
+        if (data[i][1] <= 0 || data[i][6] === 'Eliminado') {
           return {success: false, message: 'Você foi eliminado do desafio. Suas vidas acabaram! 😢'};
         }
         
-        let consecutiveDays = data[i][3];
-        let lives = data[i][2];
-        let totalDays = data[i][6] + 1;
-        let status = data[i][7];
+        let consecutiveDays = data[i][2]; // coluna C
+        let lives = data[i][1]; // coluna B
+        let totalDays = data[i][5] + 1; // coluna F
+        let status = data[i][6]; // coluna G
         let message = '✅ Movimento registrado!';
         
         // Verificar se perdeu sequência
@@ -312,11 +320,11 @@ function markUserMovement(name) {
         }
         
         // Atualizar dados na planilha
-        sheet.getRange(i + 1, 3).setValue(lives); // vidas
-        sheet.getRange(i + 1, 4).setValue(consecutiveDays); // dias consecutivos
-        sheet.getRange(i + 1, 5).setValue(now); // último check-in
-        sheet.getRange(i + 1, 7).setValue(totalDays); // total dias
-        sheet.getRange(i + 1, 8).setValue(status); // status
+        sheet.getRange(i + 1, 2).setValue(lives); // vidas (coluna B)
+        sheet.getRange(i + 1, 3).setValue(consecutiveDays); // dias consecutivos (coluna C)
+        sheet.getRange(i + 1, 4).setValue(now); // último check-in (coluna D)
+        sheet.getRange(i + 1, 6).setValue(totalDays); // total dias (coluna F)
+        sheet.getRange(i + 1, 7).setValue(status); // status (coluna G)
         
         const user = {
           name: data[i][0],
@@ -556,11 +564,40 @@ function getWinners() {
   }
 }
 
+// Função para obter horário de Brasília
+function getBrazilTime() {
+  const now = new Date();
+  // UTC-3 (horário de Brasília)
+  const brazilTime = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+  return brazilTime;
+}
+
 // Função para gerar token de sessão único
 function generateSessionToken() {
   const timestamp = new Date().getTime();
   const random = Math.random().toString(36).substring(2);
   return `session_${timestamp}_${random}`;
+}
+
+// Função para verificar se usuário existe
+function checkUserExists(name) {
+  try {
+    const sheet = getUsersSheet();
+    const data = sheet.getDataRange().getValues();
+    
+    // Procurar usuário pelo nome
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] && data[i][0].toString().toLowerCase() === name.toLowerCase()) {
+        return {success: true, exists: true, message: 'Usuário encontrado'};
+      }
+    }
+    
+    return {success: true, exists: false, message: 'Usuário não encontrado'};
+    
+  } catch (error) {
+    Logger.log('Erro no checkUserExists: ' + error.toString());
+    return {success: false, message: 'Erro ao verificar usuário'};
+  }
 }
 
 // Função para validar sessão
@@ -575,9 +612,9 @@ function validateSession(sessionToken) {
     
     // Procurar usuário pelo token de sessão
     for (let i = 1; i < data.length; i++) {
-      if (data[i][8] === sessionToken) { // Coluna do Session Token
+      if (data[i][7] === sessionToken) { // Coluna H - Session Token
         // Verificar se o login não expirou (24 horas)
-        const lastLogin = new Date(data[i][9]); // Coluna do Último Login
+        const lastLogin = new Date(data[i][8]); // Coluna I - Último Login
         const now = new Date();
         const hoursDiff = (now - lastLogin) / (1000 * 60 * 60);
         
@@ -586,15 +623,15 @@ function validateSession(sessionToken) {
         }
         
         const user = {
-          name: data[i][0],
-          lives: data[i][2],
-          consecutiveDays: data[i][3],
-          lastCheckIn: data[i][4],
-          registrationDate: data[i][5],
-          totalDays: data[i][6],
-          status: data[i][7],
-          sessionToken: data[i][8],
-          lastLogin: data[i][9]
+          name: data[i][0], // A
+          lives: data[i][1], // B
+          consecutiveDays: data[i][2], // C
+          lastCheckIn: data[i][3], // D
+          registrationDate: data[i][4], // E
+          totalDays: data[i][5], // F
+          status: data[i][6], // G
+          sessionToken: data[i][7], // H
+          lastLogin: data[i][8] // I
         };
         
         // Verificar inatividade
