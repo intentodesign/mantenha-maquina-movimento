@@ -40,6 +40,11 @@ function doPost(e) {
           .createTextOutput(JSON.stringify(getWinners()))
           .setMimeType(ContentService.MimeType.JSON);
           
+      case 'validateSession':
+        return ContentService
+          .createTextOutput(JSON.stringify(validateSession(data.sessionToken)))
+          .setMimeType(ContentService.MimeType.JSON);
+          
       default:
         return ContentService
           .createTextOutput(JSON.stringify({success: false, message: 'Ação não encontrada'}))
@@ -66,10 +71,10 @@ function getUsersSheet() {
   if (!sheet) {
     sheet = spreadsheet.insertSheet('Users');
     // Cabeçalhos
-    sheet.getRange(1, 1, 1, 8).setValues([[
-      'Nome', 'Senha', 'Vidas', 'Dias Consecutivos', 'Último Check-in', 'Data Cadastro', 'Total Dias', 'Status'
+    sheet.getRange(1, 1, 1, 10).setValues([[
+      'Nome', 'Senha', 'Vidas', 'Dias Consecutivos', 'Último Check-in', 'Data Cadastro', 'Total Dias', 'Status', 'Session Token', 'Último Login'
     ]]);
-    sheet.getRange(1, 1, 1, 8).setFontWeight('bold');
+    sheet.getRange(1, 1, 1, 10).setFontWeight('bold');
   }
   
   return sheet;
@@ -90,6 +95,7 @@ function registerUser(name, password) {
     
     // Adicionar novo usuário
     const now = new Date();
+    const sessionToken = generateSessionToken();
     const newRow = [
       name,
       password,
@@ -98,7 +104,9 @@ function registerUser(name, password) {
       '', // último check-in
       now, // data cadastro
       0, // total dias
-      'Ativo' // status
+      'Ativo', // status
+      sessionToken, // session token
+      now // último login
     ];
     
     sheet.appendRow(newRow);
@@ -110,10 +118,12 @@ function registerUser(name, password) {
       lastCheckIn: '',
       registrationDate: now,
       totalDays: 0,
-      status: 'Ativo'
+      status: 'Ativo',
+      sessionToken: sessionToken,
+      lastLogin: now
     };
     
-    return {success: true, user: user, message: 'Cadastro realizado com sucesso!'};
+    return {success: true, user: user, sessionToken: sessionToken, message: 'Cadastro realizado com sucesso!'};
     
   } catch (error) {
     Logger.log('Erro no registerUser: ' + error.toString());
@@ -131,6 +141,13 @@ function loginUser(name, password) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] && data[i][0].toString().toLowerCase() === name.toLowerCase()) {
         if (data[i][1] === password) {
+          // Gerar novo token de sessão e atualizar último login
+          const sessionToken = generateSessionToken();
+          const now = new Date();
+          
+          sheet.getRange(i + 1, 9).setValue(sessionToken); // Session Token
+          sheet.getRange(i + 1, 10).setValue(now); // Último Login
+          
           const user = {
             name: data[i][0],
             lives: data[i][2],
@@ -138,13 +155,15 @@ function loginUser(name, password) {
             lastCheckIn: data[i][4],
             registrationDate: data[i][5],
             totalDays: data[i][6],
-            status: data[i][7]
+            status: data[i][7],
+            sessionToken: sessionToken,
+            lastLogin: now
           };
           
           // Verificar se perdeu dias por inatividade
           checkUserInactivity(sheet, i + 1, user);
           
-          return {success: true, user: user};
+          return {success: true, user: user, sessionToken: sessionToken};
         } else {
           return {success: false, message: 'Senha incorreta!'};
         }
@@ -467,6 +486,62 @@ function getWinners() {
   } catch (error) {
     Logger.log('Erro no getWinners: ' + error.toString());
     return {success: false, message: 'Erro ao obter vencedores'};
+  }
+}
+
+// Função para gerar token de sessão único
+function generateSessionToken() {
+  const timestamp = new Date().getTime();
+  const random = Math.random().toString(36).substring(2);
+  return `session_${timestamp}_${random}`;
+}
+
+// Função para validar sessão
+function validateSession(sessionToken) {
+  try {
+    if (!sessionToken) {
+      return {success: false, message: 'Token de sessão não fornecido'};
+    }
+    
+    const sheet = getUsersSheet();
+    const data = sheet.getDataRange().getValues();
+    
+    // Procurar usuário pelo token de sessão
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][8] === sessionToken) { // Coluna do Session Token
+        // Verificar se o login não expirou (24 horas)
+        const lastLogin = new Date(data[i][9]); // Coluna do Último Login
+        const now = new Date();
+        const hoursDiff = (now - lastLogin) / (1000 * 60 * 60);
+        
+        if (hoursDiff > 24) {
+          return {success: false, message: 'Sessão expirada'};
+        }
+        
+        const user = {
+          name: data[i][0],
+          lives: data[i][2],
+          consecutiveDays: data[i][3],
+          lastCheckIn: data[i][4],
+          registrationDate: data[i][5],
+          totalDays: data[i][6],
+          status: data[i][7],
+          sessionToken: data[i][8],
+          lastLogin: data[i][9]
+        };
+        
+        // Verificar inatividade
+        checkUserInactivity(sheet, i + 1, user);
+        
+        return {success: true, user: user};
+      }
+    }
+    
+    return {success: false, message: 'Sessão inválida'};
+    
+  } catch (error) {
+    Logger.log('Erro no validateSession: ' + error.toString());
+    return {success: false, message: 'Erro ao validar sessão'};
   }
 }
 

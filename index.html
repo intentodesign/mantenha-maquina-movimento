@@ -433,7 +433,8 @@
                 
                 if (result.success) {
                     currentUser = result.user;
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    // Salvar token de sessão no localStorage (apenas o token)
+                    localStorage.setItem('sessionToken', result.sessionToken);
                     updateDashboard();
                     showDashboard();
                 } else {
@@ -470,7 +471,8 @@
                 
                 if (result.success) {
                     currentUser = result.user;
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    // Salvar token de sessão no localStorage (apenas o token)
+                    localStorage.setItem('sessionToken', result.sessionToken);
                     updateDashboard();
                     showDashboard();
                 } else {
@@ -506,7 +508,7 @@
                 
                 if (result.success) {
                     currentUser = result.user;
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    // Não precisa salvar nada - dados estão na planilha
                     updateDashboard();
                     messageDiv.textContent = result.message || '✅ Movimento registrado!';
                     
@@ -610,7 +612,7 @@
         // Logout
         function logout() {
             currentUser = null;
-            localStorage.removeItem('currentUser');
+            localStorage.removeItem('sessionToken');
             showWelcome();
         }
 
@@ -670,20 +672,18 @@
             });
         }
 
-        // Verificar login automático e atualizar dados do servidor
+        // Verificar login automático usando token de sessão
         window.onload = async function() {
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
+            const sessionToken = localStorage.getItem('sessionToken');
+            if (sessionToken) {
                 try {
-                    currentUser = JSON.parse(savedUser);
-                    
-                    // Revalidar dados com o servidor
+                    // Validar sessão com o servidor
                     const response = await fetch(GOOGLE_SCRIPT_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            action: 'getUserData',
-                            name: currentUser.name
+                            action: 'validateSession',
+                            sessionToken: sessionToken
                         })
                     });
 
@@ -691,7 +691,6 @@
                     
                     if (result.success) {
                         currentUser = result.user;
-                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
                         
                         // Verificar se é vencedor e mostrar tela apropriada
                         if (currentUser.status === 'Vencedor') {
@@ -702,14 +701,14 @@
                             showDashboard();
                         }
                     } else {
-                        // Dados inválidos, fazer logout
+                        // Sessão inválida ou expirada, fazer logout
+                        console.log('Sessão inválida:', result.message);
                         logout();
                     }
                 } catch (error) {
-                    console.error('Erro ao verificar dados salvos:', error);
-                    // Se há erro, usar dados salvos mesmo assim
-                    updateDashboard();
-                    showDashboard();
+                    console.error('Erro ao verificar sessão:', error);
+                    // Em caso de erro, limpar sessão
+                    logout();
                 }
             }
         };
