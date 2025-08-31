@@ -2,7 +2,7 @@
 // Cole este código no editor do Google Apps Script (script.google.com)
 
 // CONFIGURAÇÃO: ID da sua planilha Google Sheets
-const SPREADSHEET_ID = 'SEU_ID_DA_PLANILHA_AQUI'; // Substitua pelo ID da sua planilha
+const SPREADSHEET_ID = '1KkRdOU9YaxaadQFqMzc5i8cV2im05sS_K6vY_xyPaMk'; // Substitua pelo ID da sua planilha
 
 function doPost(e) {
   try {
