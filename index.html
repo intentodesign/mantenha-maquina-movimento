@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantenha a Máquina em Movimento</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #121c4d;
+            color: #bdc9e9;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 90%;
+            padding: 30px;
+            border-radius: 15px;
+            background: rgba(189, 201, 233, 0.05);
+            border: 1px solid rgba(189, 201, 233, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.8em;
+            color: #bdc9e9;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #bdc9e9;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #445cc7;
+            border-radius: 8px;
+            background: rgba(189, 201, 233, 0.1);
+            color: #bdc9e9;
+            font-size: 16px;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #bdc9e9;
+            background: rgba(189, 201, 233, 0.15);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #445cc7;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: #3a4db5;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: rgba(68, 92, 199, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #445cc7;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .movement-btn {
+            background: linear-gradient(45deg, #445cc7, #5a6fd8);
+            font-size: 1.2em;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .movement-btn:hover {
+            background: linear-gradient(45deg, #3a4db5, #4d62c4);
+        }
+
+        .ranking {
+            background: rgba(189, 201, 233, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .ranking-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(189, 201, 233, 0.1);
+        }
+
+        .ranking-item:last-child {
+            border-bottom: none;
+        }
+
+        .ranking-position {
+            font-weight: bold;
+            color: #445cc7;
+        }
+
+        .link-option {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .link-option a {
+            color: #445cc7;
+            text-decoration: none;
+        }
+
+        .link-option a:hover {
+            text-decoration: underline;
+        }
+
+        .lives {
+            font-size: 1.5em;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .heart {
+            color: #e74c3c;
+            margin: 0 3px;
+        }
+
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        .success {
+            color: #27ae60;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <!-- Tela de Boas-vindas -->
+    <div class="container">
+        <div id="welcome-screen" class="screen active">
+            <h1>🏃‍♂️ Mantenha a Máquina em Movimento</h1>
+            <p style="text-align: center; margin-bottom: 30px; font-size: 1.1em;">
+                Desafio de 90 dias consecutivos de atividade física.<br>
+                Qualquer exercício vale: caminhada, corrida, academia, esporte...
+            </p>
+            <p style="text-align: center; margin-bottom: 30px;">
+                <strong>Regras:</strong><br>
+                • Você tem 3 vidas ❤️❤️❤️<br>
+                • Perdeu um dia? Perde 1 vida e volta 1 dia na sequência<br>
+                • Sem vidas = eliminado<br>
+                • Primeiro a completar 90 dias consecutivos ganha!
+            </p>
+            <button class="btn" onclick="showRegister()">Começar Desafio</button>
+            <div class="link-option">
+                <a href="#" onclick="showLogin()">Já tenho conta - Fazer Login</a>
+            </div>
+        </div>
+
+        <!-- Tela de Cadastro -->
+        <div id="register-screen" class="screen">
+            <h2>📝 Cadastro</h2>
+            <form id="register-form" onsubmit="register(event)">
+                <div class="form-group">
+                    <label for="register-name">Nome:</label>
+                    <input type="text" id="register-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Senha:</label>
+                    <input type="password" id="register-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-confirm">Confirmar Senha:</label>
+                    <input type="password" id="register-confirm" required>
+                </div>
+                <div id="register-error" class="error"></div>
+                <button type="submit" class="btn">Criar Conta</button>
+            </form>
+            <div class="link-option">
+                <a href="#" onclick="showWelcome()">Voltar</a>
+            </div>
+        </div>
+
+        <!-- Tela de Login -->
+        <div id="login-screen" class="screen">
+            <h2>🔐 Login</h2>
+            <form id="login-form" onsubmit="login(event)">
+                <div class="form-group">
+                    <label for="login-name">Nome:</label>
+                    <input type="text" id="login-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Senha:</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <div id="login-error" class="error"></div>
+                <button type="submit" class="btn">Entrar</button>
+            </form>
+            <div class="link-option">
+                <a href="#" onclick="showWelcome()">Voltar</a>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-screen" class="screen">
+            <h2>🏆 Seu Progresso</h2>
+            
+            <div class="lives" id="user-lives">
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number" id="consecutive-days">0</span>
+                    <div class="stat-label">Dias Consecutivos</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="ranking-position">#0</span>
+                    <div class="stat-label">Posição no Ranking</div>
+                </div>
+            </div>
+
+            <button class="btn movement-btn" onclick="markMovement()" id="movement-button">
+                🚀 Mantive a Máquina em Movimento!
+            </button>
+
+            <div id="movement-message" class="success"></div>
+
+            <div class="ranking">
+                <h3 style="text-align: center; margin-bottom: 15px;">🏅 Top 10</h3>
+                <div id="ranking-list">
+                    <!-- Ranking será carregado aqui -->
+                </div>
+            </div>
+
+            <div class="link-option">
+                <a href="#" onclick="logout()">Sair</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração da API do Google Sheets
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwYzllQXIk7CjP-0WisZaCFckcCuk01hrlkC6XiyORnY9sGvMjqdWIpdcnfVAoxt3BYbw/exec';
+        
+        let currentUser = null;
+
+        // Funções de navegação
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showWelcome() { showScreen('welcome-screen'); }
+        function showRegister() { showScreen('register-screen'); }
+        function showLogin() { showScreen('login-screen'); }
+        function showDashboard() { showScreen('dashboard-screen'); }
+
+        // Função de cadastro
+        async function register(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('register-name').value.trim();
+            const password = document.getElementById('register-password').value;
+            const confirm = document.getElementById('register-confirm').value;
+            const errorDiv = document.getElementById('register-error');
+
+            errorDiv.textContent = '';
+
+            if (password !== confirm) {
+                errorDiv.textContent = 'As senhas não coincidem!';
+                return;
+            }
+
+            if (password.length < 4) {
+                errorDiv.textContent = 'A senha deve ter pelo menos 4 caracteres!';
+                return;
+            }
+
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'register',
+                        name: name,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = result.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateDashboard();
+                    showDashboard();
+                } else {
+                    errorDiv.textContent = result.message || 'Erro ao criar conta!';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Erro de conexão. Tente novamente.';
+                console.error('Erro:', error);
+            }
+        }
+
+        // Função de login
+        async function login(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('login-name').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+
+            errorDiv.textContent = '';
+
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'login',
+                        name: name,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = result.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateDashboard();
+                    showDashboard();
+                } else {
+                    errorDiv.textContent = result.message || 'Nome ou senha incorretos!';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Erro de conexão. Tente novamente.';
+                console.error('Erro:', error);
+            }
+        }
+
+        // Função para marcar movimento
+        async function markMovement() {
+            if (!currentUser) return;
+
+            const button = document.getElementById('movement-button');
+            const messageDiv = document.getElementById('movement-message');
+            
+            button.disabled = true;
+            button.textContent = '⏳ Salvando...';
+
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'markMovement',
+                        name: currentUser.name
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = result.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateDashboard();
+                    messageDiv.textContent = result.message || '✅ Movimento registrado!';
+                    
+                    if (currentUser.consecutiveDays >= 90) {
+                        messageDiv.innerHTML = '🎉 PARABÉNS! Você completou o desafio de 90 dias! 🏆';
+                    }
+                } else {
+                    messageDiv.textContent = result.message || 'Erro ao registrar movimento.';
+                    messageDiv.className = 'error';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Erro de conexão. Tente novamente.';
+                messageDiv.className = 'error';
+                console.error('Erro:', error);
+            }
+
+            setTimeout(() => {
+                button.disabled = false;
+                button.textContent = '🚀 Mantive a Máquina em Movimento!';
+                messageDiv.textContent = '';
+                messageDiv.className = 'success';
+            }, 3000);
+        }
+
+        // Atualizar dashboard
+        async function updateDashboard() {
+            if (!currentUser) return;
+
+            // Atualizar vidas
+            const livesDiv = document.getElementById('user-lives');
+            livesDiv.innerHTML = '';
+            for (let i = 0; i < currentUser.lives; i++) {
+                livesDiv.innerHTML += '<span class="heart">❤️</span>';
+            }
+            for (let i = currentUser.lives; i < 3; i++) {
+                livesDiv.innerHTML += '<span class="heart" style="opacity: 0.3;">💔</span>';
+            }
+
+            // Atualizar stats
+            document.getElementById('consecutive-days').textContent = currentUser.consecutiveDays || 0;
+
+            // Carregar ranking
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'getRanking'
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateRanking(result.ranking);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar ranking:', error);
+            }
+        }
+
+        // Atualizar ranking
+        function updateRanking(ranking) {
+            const rankingList = document.getElementById('ranking-list');
+            rankingList.innerHTML = '';
+            
+            let userPosition = 0;
+            
+            ranking.forEach((user, index) => {
+                if (user.name === currentUser.name) {
+                    userPosition = index + 1;
+                }
+                
+                const item = document.createElement('div');
+                item.className = 'ranking-item';
+                
+                let medal = '';
+                if (index === 0) medal = '🥇';
+                else if (index === 1) medal = '🥈';
+                else if (index === 2) medal = '🥉';
+                
+                item.innerHTML = `
+                    <span class="ranking-position">${medal} #${index + 1}</span>
+                    <span>${user.name}</span>
+                    <span>${user.consecutiveDays} dias</span>
+                `;
+                
+                if (user.name === currentUser.name) {
+                    item.style.background = 'rgba(68, 92, 199, 0.3)';
+                }
+                
+                rankingList.appendChild(item);
+            });
+            
+            document.getElementById('ranking-position').textContent = `#${userPosition}`;
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            showWelcome();
+        }
+
+        // Verificar login automático
+        window.onload = function() {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateDashboard();
+                showDashboard();
+            }
+        };
+    </script>
+</body>
+</html>
