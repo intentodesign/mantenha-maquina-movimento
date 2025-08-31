@@ -4,6 +4,73 @@
 // CONFIGURAÇÃO: ID da sua planilha Google Sheets
 const SPREADSHEET_ID = '1KkRdOU9YaxaadQFqMzc5i8cV2im05sS_K6vY_xyPaMk'; // Substitua pelo ID da sua planilha
 
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    let result;
+    
+    switch (action) {
+      case 'register':
+        result = registerUser(e.parameter.name, e.parameter.password);
+        break;
+        
+      case 'login':
+        result = loginUser(e.parameter.name, e.parameter.password);
+        break;
+        
+      case 'markMovement':
+        result = markUserMovement(e.parameter.name);
+        break;
+        
+      case 'getRanking':
+        result = getRanking();
+        break;
+        
+      case 'getUserData':
+        result = getUserData(e.parameter.name);
+        break;
+        
+      case 'getWinners':
+        result = getWinners();
+        break;
+        
+      case 'validateSession':
+        result = validateSession(e.parameter.sessionToken);
+        break;
+        
+      default:
+        result = {success: false, message: 'Ação não encontrada'};
+    }
+    
+    // JSONP callback para contornar CORS
+    const callback = e.parameter.callback;
+    if (callback) {
+      return ContentService
+        .createTextOutput(callback + '(' + JSON.stringify(result) + ');')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    } else {
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+  } catch (error) {
+    Logger.log('Erro no doGet: ' + error.toString());
+    const errorResult = {success: false, message: 'Erro no servidor: ' + error.toString()};
+    
+    const callback = e.parameter.callback;
+    if (callback) {
+      return ContentService
+        .createTextOutput(callback + '(' + JSON.stringify(errorResult) + ');')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    } else {
+      return ContentService
+        .createTextOutput(JSON.stringify(errorResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+}
+
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -545,9 +612,3 @@ function validateSession(sessionToken) {
   }
 }
 
-// Função para teste
-function doGet() {
-  return ContentService
-    .createTextOutput('API do Mantenha a Máquina em Movimento está funcionando!')
-    .setMimeType(ContentService.MimeType.TEXT);
-}

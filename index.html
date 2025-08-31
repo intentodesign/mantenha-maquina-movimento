@@ -383,6 +383,44 @@
         
         let currentUser = null;
 
+        // Função para fazer requisições JSONP (contorna CORS)
+        function makeRequest(action, params = {}) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                
+                // Criar script tag
+                const script = document.createElement('script');
+                
+                // Montar URL com parâmetros
+                const urlParams = new URLSearchParams({
+                    action: action,
+                    callback: callbackName,
+                    ...params
+                });
+                
+                script.src = GOOGLE_SCRIPT_URL + '?' + urlParams.toString();
+                
+                // Criar callback global
+                window[callbackName] = function(data) {
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    resolve(data);
+                };
+                
+                // Timeout para evitar travamento
+                setTimeout(() => {
+                    if (window[callbackName]) {
+                        document.head.removeChild(script);
+                        delete window[callbackName];
+                        reject(new Error('Timeout na requisição'));
+                    }
+                }, 10000);
+                
+                // Adicionar script ao DOM
+                document.head.appendChild(script);
+            });
+        }
+
         // Funções de navegação
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(screen => {
@@ -419,17 +457,10 @@
             }
 
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'register',
-                        name: name,
-                        password: password
-                    })
+                const result = await makeRequest('register', {
+                    name: name,
+                    password: password
                 });
-
-                const result = await response.json();
                 
                 if (result.success) {
                     currentUser = result.user;
@@ -457,17 +488,10 @@
             errorDiv.textContent = '';
 
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'login',
-                        name: name,
-                        password: password
-                    })
+                const result = await makeRequest('login', {
+                    name: name,
+                    password: password
                 });
-
-                const result = await response.json();
                 
                 if (result.success) {
                     currentUser = result.user;
@@ -495,16 +519,9 @@
             button.textContent = '⏳ Salvando...';
 
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'markMovement',
-                        name: currentUser.name
-                    })
+                const result = await makeRequest('markMovement', {
+                    name: currentUser.name
                 });
-
-                const result = await response.json();
                 
                 if (result.success) {
                     currentUser = result.user;
@@ -555,15 +572,7 @@
 
             // Carregar ranking
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'getRanking'
-                    })
-                });
-
-                const result = await response.json();
+                const result = await makeRequest('getRanking');
                 
                 if (result.success) {
                     updateRanking(result.ranking);
@@ -619,15 +628,7 @@
         // Carregar lista de vencedores
         async function loadWinners() {
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'getWinners'
-                    })
-                });
-
-                const result = await response.json();
+                const result = await makeRequest('getWinners');
                 
                 if (result.success) {
                     updateWinnersList(result.winners);
@@ -678,16 +679,9 @@
             if (sessionToken) {
                 try {
                     // Validar sessão com o servidor
-                    const response = await fetch(GOOGLE_SCRIPT_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'validateSession',
-                            sessionToken: sessionToken
-                        })
+                    const result = await makeRequest('validateSession', {
+                        sessionToken: sessionToken
                     });
-
-                    const result = await response.json();
                     
                     if (result.success) {
                         currentUser = result.user;
