@@ -199,6 +199,45 @@
             margin: 10px 0;
             font-size: 0.9em;
         }
+
+        .celebration {
+            background: linear-gradient(45deg, #f39c12, #e74c3c, #9b59b6, #3498db);
+            background-size: 400% 400%;
+            animation: gradient 2s ease infinite;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .celebration h2 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .celebration p {
+            color: white;
+            font-size: 1.2em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 60%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-30px); }
+            80% { transform: translateY(-15px); }
+        }
+
+        .bounce {
+            animation: bounce 2s infinite;
+        }
     </style>
 </head>
 <body>
@@ -305,11 +344,42 @@
                 <a href="#" onclick="logout()">Sair</a>
             </div>
         </div>
+
+        <!-- Tela de Parabéns -->
+        <div id="congratulations-screen" class="screen">
+            <div class="celebration">
+                <h2 class="bounce">🏆 BOA! VOCÊ É UMA MÁQUINA! 🏆</h2>
+                <p>Você completou os 90 dias consecutivos!<br>
+                Parabéns por manter a máquina em movimento!</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number">90</span>
+                    <div class="stat-label">Dias Consecutivos</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="final-position">#1</span>
+                    <div class="stat-label">Posição Final</div>
+                </div>
+            </div>
+
+            <div class="ranking">
+                <h3 style="text-align: center; margin-bottom: 15px;">🏅 Hall da Fama</h3>
+                <div id="winners-list">
+                    <!-- Lista de vencedores será carregada aqui -->
+                </div>
+            </div>
+
+            <div class="link-option">
+                <a href="#" onclick="logout()">Voltar ao Início</a>
+            </div>
+        </div>
     </div>
 
     <script>
         // Configuração da API do Google Sheets
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwYzllQXIk7CjP-0WisZaCFckcCuk01hrlkC6XiyORnY9sGvMjqdWIpdcnfVAoxt3BYbw/exec';
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/1KBhNDk1OQYigqoz204MamTqg6k8OqZatAjp_-4q15J3fDA3bbGQHVv_O/exec';
         
         let currentUser = null;
 
@@ -325,6 +395,7 @@
         function showRegister() { showScreen('register-screen'); }
         function showLogin() { showScreen('login-screen'); }
         function showDashboard() { showScreen('dashboard-screen'); }
+        function showCongratulations() { showScreen('congratulations-screen'); }
 
         // Função de cadastro
         async function register(event) {
@@ -439,8 +510,11 @@
                     updateDashboard();
                     messageDiv.textContent = result.message || '✅ Movimento registrado!';
                     
-                    if (currentUser.consecutiveDays >= 90) {
-                        messageDiv.innerHTML = '🎉 PARABÉNS! Você completou o desafio de 90 dias! 🏆';
+                    if (currentUser.consecutiveDays >= 90 && currentUser.status === 'Vencedor') {
+                        setTimeout(() => {
+                            loadWinners();
+                            showCongratulations();
+                        }, 2000);
                     }
                 } else {
                     messageDiv.textContent = result.message || 'Erro ao registrar movimento.';
@@ -540,13 +614,103 @@
             showWelcome();
         }
 
-        // Verificar login automático
-        window.onload = function() {
+        // Carregar lista de vencedores
+        async function loadWinners() {
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'getWinners'
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateWinnersList(result.winners);
+                    
+                    // Encontrar posição do usuário atual
+                    const userPosition = result.winners.findIndex(w => w.name === currentUser.name) + 1;
+                    document.getElementById('final-position').textContent = `#${userPosition}`;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar vencedores:', error);
+            }
+        }
+
+        // Atualizar lista de vencedores
+        function updateWinnersList(winners) {
+            const winnersList = document.getElementById('winners-list');
+            winnersList.innerHTML = '';
+            
+            winners.forEach((winner, index) => {
+                const item = document.createElement('div');
+                item.className = 'ranking-item';
+                
+                let medal = '';
+                if (index === 0) medal = '🥇';
+                else if (index === 1) medal = '🥈';
+                else if (index === 2) medal = '🥉';
+                else medal = '🏆';
+                
+                const winDate = new Date(winner.date).toLocaleDateString('pt-BR');
+                
+                item.innerHTML = `
+                    <span class="ranking-position">${medal} #${index + 1}</span>
+                    <span>${winner.name}</span>
+                    <span>${winDate}</span>
+                `;
+                
+                if (winner.name === currentUser.name) {
+                    item.style.background = 'rgba(68, 92, 199, 0.3)';
+                }
+                
+                winnersList.appendChild(item);
+            });
+        }
+
+        // Verificar login automático e atualizar dados do servidor
+        window.onload = async function() {
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                updateDashboard();
-                showDashboard();
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    
+                    // Revalidar dados com o servidor
+                    const response = await fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'getUserData',
+                            name: currentUser.name
+                        })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        currentUser = result.user;
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                        
+                        // Verificar se é vencedor e mostrar tela apropriada
+                        if (currentUser.status === 'Vencedor') {
+                            loadWinners();
+                            showCongratulations();
+                        } else {
+                            updateDashboard();
+                            showDashboard();
+                        }
+                    } else {
+                        // Dados inválidos, fazer logout
+                        logout();
+                    }
+                } catch (error) {
+                    console.error('Erro ao verificar dados salvos:', error);
+                    // Se há erro, usar dados salvos mesmo assim
+                    updateDashboard();
+                    showDashboard();
+                }
             }
         };
     </script>

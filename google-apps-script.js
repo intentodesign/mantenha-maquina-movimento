@@ -30,6 +30,16 @@ function doPost(e) {
           .createTextOutput(JSON.stringify(getRanking()))
           .setMimeType(ContentService.MimeType.JSON);
           
+      case 'getUserData':
+        return ContentService
+          .createTextOutput(JSON.stringify(getUserData(data.name)))
+          .setMimeType(ContentService.MimeType.JSON);
+          
+      case 'getWinners':
+        return ContentService
+          .createTextOutput(JSON.stringify(getWinners()))
+          .setMimeType(ContentService.MimeType.JSON);
+          
       default:
         return ContentService
           .createTextOutput(JSON.stringify({success: false, message: 'Ação não encontrada'}))
@@ -388,6 +398,75 @@ function getStats() {
   } catch (error) {
     Logger.log('Erro no getStats: ' + error.toString());
     return null;
+  }
+}
+
+// Função para obter dados de um usuário específico
+function getUserData(name) {
+  try {
+    const sheet = getUsersSheet();
+    const data = sheet.getDataRange().getValues();
+    
+    // Procurar usuário
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] && data[i][0].toString().toLowerCase() === name.toLowerCase()) {
+        const user = {
+          name: data[i][0],
+          lives: data[i][2],
+          consecutiveDays: data[i][3],
+          lastCheckIn: data[i][4],
+          registrationDate: data[i][5],
+          totalDays: data[i][6],
+          status: data[i][7]
+        };
+        
+        // Verificar inatividade
+        checkUserInactivity(sheet, i + 1, user);
+        
+        return {success: true, user: user};
+      }
+    }
+    
+    return {success: false, message: 'Usuário não encontrado!'};
+    
+  } catch (error) {
+    Logger.log('Erro no getUserData: ' + error.toString());
+    return {success: false, message: 'Erro ao obter dados do usuário'};
+  }
+}
+
+// Função para obter lista de vencedores
+function getWinners() {
+  try {
+    const spreadsheet = getSpreadsheet();
+    let winnersSheet = spreadsheet.getSheetByName('Winners');
+    
+    if (!winnersSheet) {
+      return {success: true, winners: []};
+    }
+    
+    const data = winnersSheet.getDataRange().getValues();
+    const winners = [];
+    
+    // Começar do índice 1 para pular cabeçalho
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0]) { // Se tem nome
+        winners.push({
+          name: data[i][0],
+          date: data[i][1],
+          position: data[i][2]
+        });
+      }
+    }
+    
+    // Ordenar por posição (data de vitória)
+    winners.sort((a, b) => a.position - b.position);
+    
+    return {success: true, winners: winners};
+    
+  } catch (error) {
+    Logger.log('Erro no getWinners: ' + error.toString());
+    return {success: false, message: 'Erro ao obter vencedores'};
   }
 }
 
