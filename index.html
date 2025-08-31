@@ -308,6 +308,10 @@
                 <input type="text" id="user-name" placeholder="Seu nome completo" required>
             </div>
             <button class="btn" onclick="checkUserAndProceed()">Continuar</button>
+            <div class="link-option">
+                <a href="#" onclick="showRegister()">Criar Nova Conta</a> | 
+                <a href="#" onclick="showLogin()">Já Tenho Conta</a>
+            </div>
         </div>
 
         <!-- Tela de Cadastro -->
@@ -455,19 +459,37 @@
                 
                 // Criar callback global
                 window[callbackName] = function(data) {
-                    document.head.removeChild(script);
-                    delete window[callbackName];
+                    // Limpar com delay para evitar erro de callback
+                    setTimeout(() => {
+                        if (document.head.contains(script)) {
+                            document.head.removeChild(script);
+                        }
+                        delete window[callbackName];
+                    }, 100);
                     resolve(data);
                 };
                 
                 // Timeout para evitar travamento
                 setTimeout(() => {
                     if (window[callbackName]) {
-                        document.head.removeChild(script);
+                        if (document.head.contains(script)) {
+                            document.head.removeChild(script);
+                        }
                         delete window[callbackName];
                         reject(new Error('Timeout na requisição'));
                     }
-                }, 10000);
+                }, 5000);
+                
+                // Adicionar handler de erro
+                script.onerror = function() {
+                    if (window[callbackName]) {
+                        if (document.head.contains(script)) {
+                            document.head.removeChild(script);
+                        }
+                        delete window[callbackName];
+                        reject(new Error('Erro ao carregar script'));
+                    }
+                };
                 
                 // Adicionar script ao DOM
                 document.head.appendChild(script);
@@ -488,7 +510,7 @@
         function showDashboard() { showScreen('dashboard-screen'); }
         function showCongratulations() { showScreen('congratulations-screen'); }
 
-        // Função para verificar usuário e direcionar
+        // Função para verificar usuário e direcionar (opcional)
         async function checkUserAndProceed() {
             const nameInput = document.getElementById('user-name');
             const name = nameInput.value.trim();
@@ -515,11 +537,15 @@
                         document.getElementById('register-password').focus();
                     }
                 } else {
-                    alert('Erro ao verificar usuário. Tente novamente.');
+                    // Se der erro, mostrar opções manuais
+                    showRegister();
+                    document.getElementById('register-name').value = name;
                 }
             } catch (error) {
                 console.error('Erro:', error);
-                alert('Erro de conexão. Tente novamente.');
+                // Se der erro, mostrar opções manuais
+                showRegister();
+                document.getElementById('register-name').value = name;
             }
         }
 
